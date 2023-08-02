@@ -9,7 +9,7 @@ Notice that this queue doesn't track length, since length's increment/decrement 
 
 # Examples
 ```rust
-use harded_queue::ShardedQueue;
+use sharded_queue::ShardedQueue;
 use std::cell::UnsafeCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
