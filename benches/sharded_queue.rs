@@ -75,12 +75,12 @@ fn criterion_benchmark(criterion: &mut Criterion) {
 
     let bench_fn_and_name_list = [
         BenchFnAndName {
-            bench_fn: crossbeam_queue_push_and_pop_concurrently,
-            bench_fn_name: String::from(name_of!(crossbeam_queue_push_and_pop_concurrently)),
-        },
-        BenchFnAndName {
             bench_fn: sharded_queue_push_and_pop_concurrently,
             bench_fn_name: String::from(name_of!(sharded_queue_push_and_pop_concurrently)),
+        },
+        BenchFnAndName {
+            bench_fn: crossbeam_queue_push_and_pop_concurrently,
+            bench_fn_name: String::from(name_of!(crossbeam_queue_push_and_pop_concurrently)),
         },
         BenchFnAndName {
             bench_fn: queue_mutex_push_and_pop_concurrently,
