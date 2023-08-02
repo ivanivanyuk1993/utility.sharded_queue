@@ -99,7 +99,7 @@ fn criterion_benchmark(criterion: &mut Criterion) {
             let (bench_fn, bench_fn_name) =
                 (bench_fn_and_name.bench_fn, &bench_fn_and_name.bench_fn_name);
             criterion.bench_function(
-                &format!("{bench_fn_name}_{name_of_operation_count}={operation_count}_concurrent_thread_count={max_concurrent_thread_count}"),
+                &format!("{bench_fn_name}|{name_of_operation_count}={operation_count}|concurrent_thread_count={max_concurrent_thread_count}"),
                 |bencher| {
                     bencher.iter(|| {
                         bench_fn(
