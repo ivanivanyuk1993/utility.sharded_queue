@@ -69,11 +69,11 @@ impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
 ///
 /// these are the only places where `T: Send` matters; all other
 /// functionality works fine on a single thread.
-unsafe impl<'captured_variables, State: Send> Send
+unsafe impl<'captured_variables, State: ?Sized + Send> Send
     for NonBlockingMutex<'captured_variables, State>
 {
 }
-unsafe impl<'captured_variables, State: Send> Sync
+unsafe impl<'captured_variables, State: ?Sized + Send> Sync
     for NonBlockingMutex<'captured_variables, State>
 {
 }
