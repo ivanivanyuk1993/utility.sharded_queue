@@ -88,12 +88,12 @@ fn criterion_benchmark(criterion: &mut Criterion) {
         },
     ];
 
-    let operation_count_list = [1e3 as usize, 1e4 as usize];
+    let operation_count_per_thread_list = [1e3 as usize, 1e4 as usize, 1e5 as usize];
 
     let max_concurrent_thread_count = available_parallelism().unwrap().get();
 
-    for operation_count in operation_count_list {
-        let name_of_operation_count = String::from(name_of!(operation_count));
+    for operation_count_per_thread in operation_count_per_thread_list {
+        let name_of_operation_count = String::from(name_of!(operation_count_per_thread));
 
         for bench_fn_and_name in bench_fn_and_name_list.iter() {
             let (bench_fn, bench_fn_name) =
@@ -103,7 +103,7 @@ fn criterion_benchmark(criterion: &mut Criterion) {
                 |bencher| {
                     bencher.iter(|| {
                         bench_fn(
-                            black_box(operation_count),
+                            black_box(operation_count_per_thread),
                             black_box(max_concurrent_thread_count),
                         )
                     })
