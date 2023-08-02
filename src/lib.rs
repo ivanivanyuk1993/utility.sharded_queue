@@ -48,6 +48,12 @@ pub struct ShardedQueue<Item> {
 ///     unsafe_state: UnsafeCell<State>,
 /// }
 ///
+/// /// [NonBlockingMutex] is needed to run actions atomically without thread blocking, or context
+/// /// switch, or spin lock contention, or rescheduling on some scheduler
+/// ///
+/// /// Notice that it uses [ShardedQueue] which doesn't guarantee order of retrieval, hence
+/// /// [NonBlockingMutex] doesn't guarantee order of execution too, even of already added
+/// /// items
 /// impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
 ///     #[inline]
 ///     pub fn new(max_concurrent_thread_count: usize, state: State) -> Self {
@@ -176,7 +182,6 @@ pub struct ShardedQueue<Item> {
 ///         (**self).fmt(f)
 ///     }
 /// }
-///
 /// ```
 ///
 /// ```

@@ -22,6 +22,12 @@ pub struct NonBlockingMutex<'captured_variables, State: ?Sized> {
     unsafe_state: UnsafeCell<State>,
 }
 
+/// [NonBlockingMutex] is needed to run actions atomically without thread blocking, or context
+/// switch, or spin lock contention, or rescheduling on some scheduler
+///
+/// Notice that it uses [ShardedQueue] which doesn't guarantee order of retrieval, hence
+/// [NonBlockingMutex] doesn't guarantee order of execution too, even of already added
+/// items
 impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
     #[inline]
     pub fn new(max_concurrent_thread_count: usize, state: State) -> Self {
@@ -31,6 +37,7 @@ impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
             unsafe_state: UnsafeCell::new(state),
         }
     }
+
     /// Please don't forget that order of execution is not guaranteed. Atomicity of operations is guaranteed,
     /// but order can be random
     #[inline]
@@ -87,6 +94,7 @@ pub struct MutexGuard<
     ///  negative trait bounds are not yet fully implemented; use marker types for now [E0658]
     _phantom_unsend: PhantomData<std::sync::MutexGuard<'non_blocking_mutex_ref, State>>,
 }
+
 // todo uncomment when this error is no longer actual
 //  negative trait bounds are not yet fully implemented; use marker types for now [E0658]
 // impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized> !Send
@@ -110,15 +118,18 @@ impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized>
         }
     }
 }
+
 impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized> Deref
     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 {
     type Target = State;
+
     #[inline]
-    fn deref(&self) -> &State{
-         unsafe { &*self.non_blocking_mutex.unsafe_state.get() }
+    fn deref(&self) -> &State {
+        unsafe { &*self.non_blocking_mutex.unsafe_state.get() }
     }
 }
+
 impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized> DerefMut
     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 {
@@ -127,20 +138,22 @@ impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized> DerefMut
         unsafe { &mut *self.non_blocking_mutex.unsafe_state.get() }
     }
 }
+
 impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Debug> Debug
     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result{
-         Debug::fmt(&**self, f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&**self, f)
     }
 }
+
 impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Display> Display
     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result{
-         (**self).fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        (**self).fmt(f)
     }
 }
 ```
