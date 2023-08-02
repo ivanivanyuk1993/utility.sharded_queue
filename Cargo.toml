@@ -15,7 +15,7 @@ edition = "2021"
 [dependencies]
 
 [dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 crossbeam-queue = "0.3"
 nameof = "1.2.2"
 
