@@ -311,16 +311,6 @@ impl<Item> ShardedQueue<Item> {
         }
     }
 
-    /// Notice that when [ShardedQueue::push_back] is called in same code block, like
-    ///
-    /// ```
-    /// use sharded_queue::ShardedQueue;
-    ///
-    /// let max_concurrent_thread_count = 1;
-    /// let sharded_queue = ShardedQueue::<usize>::new(max_concurrent_thread_count);
-    /// sharded_queue.push_back(1);
-    /// sharded_queue.push_back(2);
-    /// ```
     #[inline]
     pub fn push_back(&self, item: Item) {
         let queue_index = self.tail_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
