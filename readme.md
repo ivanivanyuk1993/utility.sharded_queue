@@ -1,26 +1,11 @@
 # `ShardedQueue`
-`ShardedQueue` is needed for some schedulers and `NonBlockingMutex`
-as a highly specialized for their use case concurrent queue
+`ShardedQueue` is needed for some schedulers and `NonBlockingMutex` as a highly specialized for their use case concurrent queue
 
-`ShardedQueue` is a light-weight concurrent queue,
-which uses spin locking and fights lock
-contention with sharding
+`ShardedQueue` is a light-weight concurrent queue, which uses spin locking and fights lock contention with sharding
 
-Notice that while it may seem that FIFO order is guaranteed, it is not, because
-there can be a situation, when multiple producers triggered long resize of very large shards,
-all but last, then passed enough time for resize to finish, then 1 producer triggers long resize of
-last shard, and all other threads start to consume or produce, and eventually start spinning on
-last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that
-`ShardedQueue::pop_front_or_spin` will acquire lock before `ShardedQueue::push_back` on first
-attempt
+Notice that while it may seem that FIFO order is guaranteed, it is not, because there can be a situation, when multiple producers triggered long resize of very large shards, all but last, then passed enough time for resize to finish, then 1 producer triggers long resize of last shard, and all other threads start to consume or produce, and eventually start spinning on last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that `ShardedQueue::pop_front_or_spin` will acquire lock before `ShardedQueue::push_back` on first attempt
 
-Notice that this queue doesn't track length, since length's increment/decrement logic may change
-depending on use case, as well as logic when it goes from 1 to 0 or reverse
-(in some cases, like `NonBlockingMutex`, we don't even add action to queue when count
-reaches 1, but run it immediately in same thread), or even negative
-(to optimize some hot paths, like in some schedulers,
-since it is cheaper to restore count to correct state than to enforce that it can not go negative
-in some schedulers)
+Notice that this queue doesn't track length, since length's increment/decrement logic may change depending on use case, as well as logic when it goes from 1 to 0 or reverse(in some cases, like `NonBlockingMutex`, we don't even add action to queue when count reaches 1, but run it immediately in same thread), or even negative(to optimize some hot paths, like in some schedulers, since it is cheaper to restore count to correct state than to enforce that it can not go negative in some schedulers)
 
 # Examples
 ```rust
