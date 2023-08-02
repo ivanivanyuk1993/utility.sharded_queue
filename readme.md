@@ -1,4 +1,4 @@
-# [ShardedQueue]
+# `ShardedQueue`
 `ShardedQueue` is needed for some schedulers and `NonBlockingMutex`
 as a highly specialized for their use case concurrent queue
 
