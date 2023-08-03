@@ -2,7 +2,7 @@
 categories = ["concurrency"]
 description = "ShardedQueue is a specialized light-weight concurrent queue, which uses spin locking and fights lock contention with sharding"
 homepage = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
-keywords = ["concurrency", "concurrent queue", "mpmc", "sharded queue", "queue"]
+keywords = ["concurrency", "concurrent_queue", "mpmc", "sharded_queue", "queue"]
 license = "MIT OR Apache-2.0"
 name = "sharded_queue"
 readme = "readme.md"
