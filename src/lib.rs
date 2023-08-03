@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 pub struct ShardedQueue<Item> {
     modulo_number: usize,
-    mutexed_queue_shard_list: Vec<Mutex<VecDeque<Item>>>,
+    queue_mutex_list: Vec<Mutex<VecDeque<Item>>>,
 
     head_index: AtomicUsize,
     tail_index: AtomicUsize,
@@ -12,14 +12,14 @@ pub struct ShardedQueue<Item> {
 
 /// # [ShardedQueue]
 /// [ShardedQueue] is needed for some schedulers and [NonBlockingMutex]
-/// as a highly specialized for their use case concurrent queue
+/// to store and retrieve data concurrently in the most efficient way
 ///
 /// [ShardedQueue] is a light-weight concurrent queue, which uses spin locking and fights lock
 /// contention with sharding
 ///
 /// Notice that while it may seem that FIFO order is guaranteed, it is not, because
-/// there can be a situation, when multiple producers triggered long resize of very large shards,
-/// all but last, then passed enough time for resize to finish, then 1 producer triggers long resize of
+/// there can be a situation, when multiple consumers or producers triggered long resize of very large shards,
+/// all but last, then passed enough time for resize to finish, then 1 consumer or producer triggers long resize of
 /// last shard, and all other threads start to consume or produce, and eventually start spinning on
 /// last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that
 /// [ShardedQueue::pop_front_or_spin] will acquire lock before [ShardedQueue::push_back] on first
@@ -58,7 +58,7 @@ pub struct ShardedQueue<Item> {
 ///     #[inline]
 ///     pub fn new(max_concurrent_thread_count: usize, state: State) -> Self {
 ///         Self {
-///             task_count: Default::default(),
+///             task_count: AtomicUsize::new(0),
 ///             task_queue: ShardedQueue::new(max_concurrent_thread_count),
 ///             unsafe_state: UnsafeCell::new(state),
 ///         }
@@ -272,17 +272,32 @@ pub struct ShardedQueue<Item> {
 impl<Item> ShardedQueue<Item> {
     #[inline]
     pub fn new(max_concurrent_thread_count: usize) -> Self {
-        // queue_count should be greater than max_concurrent_thread_count and a power of 2 (to make modulo more performant)
+        // Computing `queue_count` and `modulo_number` to optmize modulo operation
+        // performance, knowing that:
+        // x % 2^n == x & (2^n - 1)
+        //
+        // Substituting `x` with `queue_index` and `2^n` with `queue_count`:
+        // queue_index % queue_count == queue_index & (queue_count - 1)
+        //
+        // So, to get the best modulo performance, we need to
+        // have `queue_count` a power of 2.
+        // Also, `queue_count` should be greater than `max_concurrent_thread_count`,
+        // so that threads physically couldn't contend if operations are fast
+        // (`VecDeque` operations are amortized O(1),
+        // and take O(n) only when resize needs to happen)
+        //
+        // Computing lowest `queue_count` which is
+        // - Greater than or equal to `max_concurrent_thread_count`
+        // - And is a power of 2
         let queue_count =
             (2 as usize).pow((max_concurrent_thread_count as f64).log2().ceil() as u32);
         Self {
-            // Computing modulo number, knowing that x % 2^n == x & (2^n - 1)
             modulo_number: queue_count - 1,
-            mutexed_queue_shard_list: (0..queue_count)
+            queue_mutex_list: (0..queue_count)
                 .map(|_| Mutex::new(VecDeque::<Item>::new()))
                 .collect(),
-            head_index: Default::default(),
-            tail_index: Default::default(),
+            head_index: AtomicUsize::new(0),
+            tail_index: AtomicUsize::new(0),
         }
     }
 
@@ -292,8 +307,7 @@ impl<Item> ShardedQueue<Item> {
     #[inline]
     pub fn pop_front_or_spin(&self) -> Item {
         let queue_index = self.head_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
-        let mutexed_queue_shard =
-            unsafe { self.mutexed_queue_shard_list.get_unchecked(queue_index) };
+        let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
 
         // Note that since we already incremented `head_index`,
         // it is important to complete operation. If we tried
@@ -302,7 +316,7 @@ impl<Item> ShardedQueue<Item> {
         // introducing overhead, and even if we need it,
         // we can just check length outside before calling this method
         loop {
-            let ref mut try_lock_result = mutexed_queue_shard.try_lock();
+            let ref mut try_lock_result = queue_mutex.try_lock();
 
             /// If we acquired lock after [ShardedQueue::push_back] and have item,
             /// we can use return item, otherwise we should unlock and restart
@@ -319,12 +333,11 @@ impl<Item> ShardedQueue<Item> {
     #[inline]
     pub fn push_back(&self, item: Item) {
         let queue_index = self.tail_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
-        let mutexed_queue_shard =
-            unsafe { self.mutexed_queue_shard_list.get_unchecked(queue_index) };
+        let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
         loop {
             /// We can not use [Mutex::lock] instead of [Mutex::try_lock],
             /// because it may block thread, which we want to avoid
-            let ref mut try_lock_result = mutexed_queue_shard.try_lock();
+            let ref mut try_lock_result = queue_mutex.try_lock();
             if let Ok(queue_shard) = try_lock_result {
                 queue_shard.push_back(item);
 
