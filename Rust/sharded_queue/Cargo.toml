@@ -1,13 +1,13 @@
 [package]
-categories = ["concurrency"]
+categories = ["concurrency", "data-structures"]
 description = "ShardedQueue is a specialized light-weight concurrent queue, which uses spin locking and fights lock contention with sharding"
 homepage = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
-keywords = ["concurrency", "concurrent_queue", "mpmc", "sharded_queue", "queue"]
+keywords = ["concurrency", "concurrent-queue", "mpmc", "sharded-queue", "queue"]
 license = "MIT OR Apache-2.0"
 name = "sharded_queue"
 readme = "readme.md"
 repository = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
-version = "1.0.9"
+version = "1.0.10"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
