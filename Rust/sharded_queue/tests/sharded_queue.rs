@@ -5,7 +5,7 @@ use sharded_queue::ShardedQueue;
 #[test]
 fn push_and_pop_concurrently() {
     let max_concurrent_thread_count = available_parallelism().unwrap().get();
-    let sharded_queue = ShardedQueue::<usize>::new(max_concurrent_thread_count);
+    let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
     let operation_count = 1e4 as usize;
     let mut joined_operation_result_list =
         Vec::with_capacity(operation_count * max_concurrent_thread_count);
@@ -52,7 +52,7 @@ fn push_and_pop_concurrently() {
 #[test]
 fn push_concurrently_then_pop_concurrently() {
     let max_concurrent_thread_count = available_parallelism().unwrap().get();
-    let sharded_queue = ShardedQueue::<usize>::new(max_concurrent_thread_count);
+    let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
     let operation_count = 1e4 as usize;
 
     scope(|scope| {

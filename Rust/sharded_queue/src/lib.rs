@@ -23,6 +23,19 @@ pub struct ShardedQueue<Item> {
 /// ```
 /// )
 ///
+/// ## Simple example
+///
+/// ```rust
+/// use std::thread::{available_parallelism};
+/// use sharded_queue::ShardedQueue;
+///
+/// let max_concurrent_thread_count = available_parallelism().unwrap().get();
+/// let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
+///
+/// sharded_queue.push_back(1);
+/// let item = sharded_queue.pop_front_or_spin();
+/// ```
+///
 /// ## Why you may want to not use `ShardedQueue`
 ///
 /// - Unlike in other concurrent queues, FIFO order is not guaranteed.
@@ -83,7 +96,8 @@ pub struct ShardedQueue<Item> {
 /// - 1 cheap bit operation(to get modulo)
 /// - 1 get from queue-shard list by index
 ///
-/// ## Examples
+/// ## Complex example
+///
 /// ```rust
 /// use sharded_queue::ShardedQueue;
 /// use std::cell::UnsafeCell;
