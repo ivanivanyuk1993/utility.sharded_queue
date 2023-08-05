@@ -22,7 +22,7 @@ pub struct ShardedQueue<Item> {
 /// cargo bench
 /// ```
 ///
-/// ## Simple example
+/// ## Example
 ///
 /// ```rust
 /// use std::thread::{available_parallelism};

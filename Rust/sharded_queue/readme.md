@@ -15,7 +15,7 @@ cargo bench
 cargo add sharded_queue
 ```
 
-## Simple example
+## Example
 
 ```rust
 use std::thread::{available_parallelism};
