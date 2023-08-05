@@ -83,7 +83,7 @@ stack `pop`-s from `back` and `push`-es to `back`,
 which has double the contention over queue, while number of atomic increments
 per `pop` or `push` is same as in queue)
 
-`ShardedQueue` uses array of protected by separate `Mutex`-es queues-shards,
+`ShardedQueue` uses array of protected by separate `Mutex`-es queues(shards),
 and atomically increments `head_index` or `tail_index` when `pop` or `push` happens,
 and computes shard index for current operation by applying modulo operation to
 `head_index` or `tail_index`
@@ -92,22 +92,24 @@ Modulo operation is optimized, knowing that
 ```
 x % 2^n == x & (2^n - 1)
 ```
-, so, as long as queue-shard count is a power of two,
+, so, as long as count of queues(shards) is a power of two,
 we can compute modulo very efficiently using formula
 ```
-operation_index % queue_count == operation_index & (queue_count - 1)
+operation_number % shard_count == operation_number & (shard_count - 1)
 ```
 
-As long as queue-shard count is a power of two and
-is greater than number of concurrent threads,
-and `push`/`pop` is fast enough to not overlap multiple laps,
-we have the highest possible performance.
+As long as count of queues(shards) is a power of two and
+is greater than or equal to number of CPU-s,
+and CPU-s spend ~same time in `push`/`pop` (time is ~same,
+since it is amortized O(1)),
+multiple CPU-s physically can't access same shards
+simultaneously and we have best possible performance.
 Synchronizing underlying non-concurrent queue costs only
 - 1 additional atomic increment per `push` or `pop`
 (incrementing `head_index` or `tail_index`)
 - 2 additional `compare_and_swap`-s(uncontended `Mutex` acquire and release)
 - 1 cheap bit operation(to get modulo)
-- 1 get from queue-shard list by index
+- 1 get from queue(shard) list by index
 
 ## Complex example
 

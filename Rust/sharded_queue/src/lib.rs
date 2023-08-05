@@ -69,7 +69,7 @@ pub struct ShardedQueue<Item> {
 /// which has double the contention over queue, while number of atomic increments
 /// per `pop` or `push` is same as in queue)
 ///
-/// [ShardedQueue] uses array of protected by separate [Mutex]-es queues-shards,
+/// [ShardedQueue] uses array of protected by separate [Mutex]-es queues(shards),
 /// and atomically increments `head_index` or `tail_index` when `pop` or `push` happens,
 /// and computes shard index for current operation by applying modulo operation to
 /// `head_index` or `tail_index`
@@ -78,22 +78,24 @@ pub struct ShardedQueue<Item> {
 /// ```ignore
 /// x % 2^n == x & (2^n - 1)
 /// ```
-/// , so, as long as queue-shard count is a power of two,
+/// , so, as long as count of queues(shards) is a power of two,
 /// we can compute modulo very efficiently using formula
 /// ```ignore
-/// operation_index % queue_count == operation_index & (queue_count - 1)
+/// operation_number % shard_count == operation_number & (shard_count - 1)
 /// ```
 ///
-/// As long as queue-shard count is a power of two and
-/// is greater than number of concurrent threads,
-/// and `push`/`pop` is fast enough to not overlap multiple laps,
-/// we have the highest possible performance.
+/// As long as count of queues(shards) is a power of two and
+/// is greater than or equal to number of CPU-s,
+/// and CPU-s spend ~same time in `push`/`pop` (time is ~same,
+/// since it is amortized O(1)),
+/// multiple CPU-s physically can't access same shards
+/// simultaneously and we have best possible performance.
 /// Synchronizing underlying non-concurrent queue costs only
 /// - 1 additional atomic increment per `push` or `pop`
 /// (incrementing `head_index` or `tail_index`)
 /// - 2 additional `compare_and_swap`-s(uncontended [Mutex] acquire and release)
 /// - 1 cheap bit operation(to get modulo)
-/// - 1 get from queue-shard list by index
+/// - 1 get from queue(shard) list by index
 ///
 /// ## Complex example
 ///
@@ -335,28 +337,28 @@ pub struct ShardedQueue<Item> {
 impl<Item> ShardedQueue<Item> {
     #[inline]
     pub fn new(max_concurrent_thread_count: usize) -> Self {
-        // Computing `queue_count` and `modulo_number` to optmize modulo operation
+        // Computing `shard_count` and `modulo_number` to optmize modulo operation
         // performance, knowing that:
         // x % 2^n == x & (2^n - 1)
         //
-        // Substituting `x` with `operation_index` and `2^n` with `queue_count`:
-        // operation_index % queue_count == operation_index & (queue_count - 1)
+        // Substituting `x` with `operation_number` and `2^n` with `shard_count`:
+        // operation_number % shard_count == operation_number & (shard_count - 1)
         //
         // So, to get the best modulo performance, we need to
-        // have `queue_count` a power of 2.
-        // Also, `queue_count` should be greater than `max_concurrent_thread_count`,
+        // have `shard_count` a power of 2.
+        // Also, `shard_count` should be greater than `max_concurrent_thread_count`,
         // so that threads physically couldn't contend if operations are fast
         // (`VecDeque` operations are amortized O(1),
         // and take O(n) only when resize needs to happen)
         //
-        // Computing lowest `queue_count` which is
+        // Computing lowest `shard_count` which is
         // - Greater than or equal to `max_concurrent_thread_count`
         // - And is a power of 2
-        let queue_count =
+        let shard_count =
             (2 as usize).pow((max_concurrent_thread_count as f64).log2().ceil() as u32);
         Self {
-            modulo_number: queue_count - 1,
-            queue_mutex_list: (0..queue_count)
+            modulo_number: shard_count - 1,
+            queue_mutex_list: (0..shard_count)
                 .map(|_| Mutex::new(VecDeque::<Item>::new()))
                 .collect(),
             head_index: AtomicUsize::new(0),
