@@ -52,6 +52,27 @@ in some schedulers)
 `ShardedQueue::pop_front_or_spin` and
 `ShardedQueue::push_back` are implemented
 
+## Benchmarks
+`ShardedQueue` outperforms other concurrent queues.
+See benchmark logic in directory `benches` and reproduce results by running
+```bash
+cargo bench
+```
+| Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
+|--------------------------------------------|---------------------------:|------------------------:|-------------:|
+| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    3.1980 ms |
+| concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
+| queue_mutex_push_and_pop_concurrently      |                      1_000 |                      24 |    6.4846 ms |
+| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    37.245 ms |
+| concurrent_queue_push_and_pop_concurrently |                     10_000 |                      24 |    44.660 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                     10_000 |                      24 |    49.234 ms |
+| queue_mutex_push_and_pop_concurrently      |                     10_000 |                      24 |    69.207 ms |
+| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    395.12 ms |
+| concurrent_queue_push_and_pop_concurrently |                    100_000 |                      24 |    445.88 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                    100_000 |                      24 |    434.00 ms |
+| queue_mutex_push_and_pop_concurrently      |                    100_000 |                      24 |    476.59 ms |
+
 ## Design explanation
 
 `ShardedQueue` is designed to be used in some schedulers and `NonBlockingMutex`
@@ -240,20 +261,4 @@ impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Display> Disp
     }
 }
 ```
-
-## Benchmarks
-| Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
-|--------------------------------------------|---------------------------:|------------------------:|-------------:|
-| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    3.1980 ms |
-| concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
-| crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
-| queue_mutex_push_and_pop_concurrently      |                      1_000 |                      24 |    6.4846 ms |
-| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    37.245 ms |
-| concurrent_queue_push_and_pop_concurrently |                     10_000 |                      24 |    44.660 ms |
-| crossbeam_queue_push_and_pop_concurrently  |                     10_000 |                      24 |    49.234 ms |
-| queue_mutex_push_and_pop_concurrently      |                     10_000 |                      24 |    69.207 ms |
-| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    395.12 ms |
-| concurrent_queue_push_and_pop_concurrently |                    100_000 |                      24 |    445.88 ms |
-| crossbeam_queue_push_and_pop_concurrently  |                    100_000 |                      24 |    434.00 ms |
-| queue_mutex_push_and_pop_concurrently      |                    100_000 |                      24 |    476.59 ms |
 
