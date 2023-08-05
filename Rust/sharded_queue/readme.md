@@ -107,7 +107,8 @@ simultaneously and we have best possible performance.
 Synchronizing underlying non-concurrent queue costs only
 - 1 additional atomic increment per `push` or `pop`
 (incrementing `head_index` or `tail_index`)
-- 2 additional `compare_and_swap`-s(uncontended `Mutex` acquire and release)
+- 1 additional `compare_and_swap` and 1 atomic decrement
+(uncontended `Mutex` acquire and release)
 - 1 cheap bit operation(to get modulo)
 - 1 get from queue(shard) list by index
 
