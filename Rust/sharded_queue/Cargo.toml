@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 name = "sharded_queue"
 readme = "readme.md"
 repository = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
-version = "1.0.14"
+version = "1.0.15"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

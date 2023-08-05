@@ -59,7 +59,7 @@ See benchmark logic in directory `benches` and reproduce results by running
 cargo bench
 ```
 | Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
-|--------------------------------------------|---------------------------:|------------------------:|-------------:|
+|:-------------------------------------------|---------------------------:|------------------------:|-------------:|
 | sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    3.1980 ms |
 | concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
