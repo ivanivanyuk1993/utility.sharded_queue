@@ -81,7 +81,7 @@ pub struct ShardedQueue<Item> {
 /// , so, as long as queue-shard count is a power of two,
 /// we can compute modulo very efficiently using formula
 /// ```ignore
-/// queue_index % queue_count == queue_index & (queue_count - 1)
+/// operation_index % queue_count == operation_index & (queue_count - 1)
 /// ```
 ///
 /// As long as queue-shard count is a power of two and
@@ -339,8 +339,8 @@ impl<Item> ShardedQueue<Item> {
         // performance, knowing that:
         // x % 2^n == x & (2^n - 1)
         //
-        // Substituting `x` with `queue_index` and `2^n` with `queue_count`:
-        // queue_index % queue_count == queue_index & (queue_count - 1)
+        // Substituting `x` with `operation_index` and `2^n` with `queue_count`:
+        // operation_index % queue_count == operation_index & (queue_count - 1)
         //
         // So, to get the best modulo performance, we need to
         // have `queue_count` a power of 2.
