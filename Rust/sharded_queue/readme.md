@@ -76,11 +76,6 @@ Synchronizing underlying non-concurrent queue costs only
 - 1 cheap bit operation(to get modulo)
 - 1 get from queue-shard list by index
 
-## Installation
-```bash
-cargo add sharded_queue
-```
-
 ## Examples
 ```rust
 use sharded_queue::ShardedQueue;
