@@ -1,3 +1,4 @@
+use concurrent_queue::ConcurrentQueue;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use nameof::name_of;
 use std::collections::VecDeque;
@@ -6,6 +7,24 @@ use std::thread::{available_parallelism, scope};
 
 use crossbeam_queue::SegQueue;
 use sharded_queue::ShardedQueue;
+
+fn concurrent_queue_push_and_pop_concurrently(
+    operation_count: usize,
+    max_concurrent_thread_count: usize,
+) {
+    let queue = ConcurrentQueue::unbounded();
+
+    scope(|scope| {
+        for _ in 0..max_concurrent_thread_count {
+            scope.spawn(|| {
+                for i in 0..operation_count {
+                    queue.push(i);
+                    queue.pop();
+                }
+            });
+        }
+    });
+}
 
 fn crossbeam_queue_push_and_pop_concurrently(
     operation_count: usize,
@@ -79,6 +98,10 @@ fn criterion_benchmark(criterion: &mut Criterion) {
             bench_fn_name: String::from(name_of!(sharded_queue_push_and_pop_concurrently)),
         },
         BenchFnAndName {
+            bench_fn: concurrent_queue_push_and_pop_concurrently,
+            bench_fn_name: String::from(name_of!(concurrent_queue_push_and_pop_concurrently)),
+        },
+        BenchFnAndName {
             bench_fn: crossbeam_queue_push_and_pop_concurrently,
             bench_fn_name: String::from(name_of!(crossbeam_queue_push_and_pop_concurrently)),
         },
@@ -93,13 +116,11 @@ fn criterion_benchmark(criterion: &mut Criterion) {
     let max_concurrent_thread_count = available_parallelism().unwrap().get();
 
     for operation_count_per_thread in operation_count_per_thread_list {
-        let name_of_operation_count_per_thread = String::from(name_of!(operation_count_per_thread));
-
         for bench_fn_and_name in bench_fn_and_name_list.iter() {
             let (bench_fn, bench_fn_name) =
                 (bench_fn_and_name.bench_fn, &bench_fn_and_name.bench_fn_name);
             criterion.bench_function(
-                &format!("{bench_fn_name}|{name_of_operation_count}={operation_count}|concurrent_thread_count={max_concurrent_thread_count}"),
+                &format!("{bench_fn_name}|{operation_count_per_thread}|{max_concurrent_thread_count}"),
                 |bencher| {
                     bencher.iter(|| {
                         bench_fn(

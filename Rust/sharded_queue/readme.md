@@ -1,13 +1,87 @@
 # `ShardedQueue`
-`ShardedQueue` is needed for some schedulers and `NonBlockingMutex` to store and retrieve data concurrently in the most efficient way
 
-`ShardedQueue` is a light-weight concurrent queue, which uses spin locking and fights lock contention with sharding
+## Why you should use `ShardedQueue`
 
-Notice that while it may seem that FIFO order is guaranteed, it is not, because there can be a situation, when multiple consumers or producers triggered long resize of very large shards, all but last, then passed enough time for resize to finish, then 1 consumer or producer triggers long resize of last shard, and all other threads start to consume or produce, and eventually start spinning on last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that `ShardedQueue::pop_front_or_spin` will acquire lock before `ShardedQueue::push_back` on first attempt
+`ShardedQueue` is currently the fastest collection which can be used
+under highest concurrency and load
+(among most popular solutions, like `concurrent-queue`,
+see benchmarks in directory `benches` and run them with
+```bash
+cargo bench
+```
+)
 
-Notice that this queue doesn't track length, since length's increment/decrement logic may change depending on use case, as well as logic when it goes from 1 to 0 or reverse(in some cases, like `NonBlockingMutex`, we don't even add action to queue when count reaches 1, but run it immediately in same thread), or even negative(to optimize some hot paths, like in some schedulers, since it is cheaper to restore count to correct state than to enforce that it can not go negative in some schedulers)
+## Installation
+```bash
+cargo add sharded_queue
+```
 
-# Examples
+## Why you may want to not use `ShardedQueue`
+
+- Unlike in other concurrent queues, FIFO order is not guaranteed.
+While it may seem that FIFO order is guaranteed, it is not, because
+there can be a situation, when multiple consumers or producers triggered long resize of very large shards,
+all but last, then passed enough time for resize to finish, then 1 consumer or producer triggers long resize of
+last shard, and all other threads start to consume or produce, and eventually start spinning on
+last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that
+`ShardedQueue::pop_front_or_spin` will acquire lock before `ShardedQueue::push_back` on first
+attempt
+
+- `ShardedQueue` doesn't track length, since length's increment/decrement logic may change
+depending on use case, as well as logic when it goes from 1 to 0 or reverse
+(in some cases, like `NonBlockingMutex`, we don't even add action to queue when count
+reaches 1, but run it immediately in same thread), or even negative
+(to optimize some hot paths, like in some schedulers,
+since it is cheaper to restore count to correct state than to enforce that it can not go negative
+in some schedulers)
+
+- `ShardedQueue` doesn't have many features, only necessary methods
+`ShardedQueue::pop_front_or_spin` and
+`ShardedQueue::push_back` are implemented
+
+## Design explanation
+
+`ShardedQueue` is designed to be used in some schedulers and `NonBlockingMutex`
+as the most efficient collection under highest
+concurrently and load
+(concurrent stack can't outperform it, because, unlike queue, which
+spreads `pop` and `push` contention between `front` and `back`,
+stack `pop`-s from `back` and `push`-es to `back`,
+which has double the contention over queue, while number of atomic increments
+per `pop` or `push` is same as in queue)
+
+`ShardedQueue` uses array of protected by separate `Mutex`-es queues-shards,
+and atomically increments `head_index` or `tail_index` when `pop` or `push` happens,
+and computes shard index for current operation by applying modulo operation to
+`head_index` or `tail_index`
+
+Modulo operation is optimized, knowing that
+```
+x % 2^n == x & (2^n - 1)
+```
+, so, as long as queue-shard count is a power of two,
+we can compute modulo very efficiently using formula
+```
+queue_index % queue_count == queue_index & (queue_count - 1)
+```
+
+As long as queue-shard count is a power of two and
+is greater than number of concurrent threads,
+and `push`/`pop` is fast enough to not overlap multiple laps,
+we have the highest possible performance.
+Synchronizing underlying non-concurrent queue costs only
+- 1 additional atomic increment per `push` or `pop`
+(incrementing `head_index` or `tail_index`)
+- 2 additional `compare_and_swap`-s(uncontended `Mutex` acquire and release)
+- 1 cheap bit operation(to get modulo)
+- 1 get from queue-shard list by index
+
+## Installation
+```bash
+cargo add sharded_queue
+```
+
+## Examples
 ```rust
 use sharded_queue::ShardedQueue;
 use std::cell::UnsafeCell;
@@ -158,16 +232,19 @@ impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Display> Disp
 }
 ```
 
-# Benchmarks
-| benchmark_name                            | operation_count_per_thread | concurrent_thread_count | average_time |
-|-------------------------------------------|---------------------------:|------------------------:|-------------:|
-| sharded_queue_push_and_pop_concurrently   |                      1_000 |                      24 |    3.1980 ms |
-| crossbeam_queue_push_and_pop_concurrently |                      1_000 |                      24 |    5.3154 ms |
-| queue_mutex_push_and_pop_concurrently     |                      1_000 |                      24 |    6.4846 ms |
-| sharded_queue_push_and_pop_concurrently   |                     10_000 |                      24 |    37.245 ms |
-| crossbeam_queue_push_and_pop_concurrently |                     10_000 |                      24 |    49.234 ms |
-| queue_mutex_push_and_pop_concurrently     |                     10_000 |                      24 |    69.207 ms |
-| sharded_queue_push_and_pop_concurrently   |                    100_000 |                      24 |    395.12 ms |
-| crossbeam_queue_push_and_pop_concurrently |                    100_000 |                      24 |    434.00 ms |
-| queue_mutex_push_and_pop_concurrently     |                    100_000 |                      24 |    476.59 ms |
+## Benchmarks
+| Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
+|--------------------------------------------|---------------------------:|------------------------:|-------------:|
+| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    3.1980 ms |
+| concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
+| queue_mutex_push_and_pop_concurrently      |                      1_000 |                      24 |    6.4846 ms |
+| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    37.245 ms |
+| concurrent_queue_push_and_pop_concurrently |                     10_000 |                      24 |    44.660 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                     10_000 |                      24 |    49.234 ms |
+| queue_mutex_push_and_pop_concurrently      |                     10_000 |                      24 |    69.207 ms |
+| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    395.12 ms |
+| concurrent_queue_push_and_pop_concurrently |                    100_000 |                      24 |    445.88 ms |
+| crossbeam_queue_push_and_pop_concurrently  |                    100_000 |                      24 |    434.00 ms |
+| queue_mutex_push_and_pop_concurrently      |                    100_000 |                      24 |    476.59 ms |
 
