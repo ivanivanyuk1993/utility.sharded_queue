@@ -4,12 +4,11 @@
 
 `ShardedQueue` is currently the fastest collection which can be used
 under highest concurrency and load
-(among most popular solutions, like `concurrent-queue`,
+among most popular solutions, like `concurrent-queue` -
 see benchmarks in directory `benches` and run them with
 ```bash
 cargo bench
 ```
-)
 
 ## Installation
 ```bash
