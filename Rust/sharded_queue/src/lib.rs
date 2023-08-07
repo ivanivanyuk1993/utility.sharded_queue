@@ -249,92 +249,6 @@ pub struct ShardedQueue<Item> {
 ///     }
 /// }
 /// ```
-///
-/// ```
-/// use sharded_queue::ShardedQueue;
-///
-/// fn is_send<T: Send>(t: T) {}
-///
-/// let shardedQueue: ShardedQueue<usize> = ShardedQueue::new(1);
-///
-/// is_send(shardedQueue);
-/// ```
-///
-/// ```
-/// use sharded_queue::ShardedQueue;
-///
-/// fn is_sync<T: Sync>(t: T) {}
-///
-/// let shardedQueue: ShardedQueue<usize> = ShardedQueue::new(1);
-///
-/// is_sync(shardedQueue);
-/// ```
-///
-/// ```compile_fail
-/// use std::rc::Rc;
-/// use sharded_queue::ShardedQueue;
-///
-/// fn is_send<T: Send>(t: T) {}
-///
-/// let shardedQueue: ShardedQueue<Rc<usize>> = ShardedQueue::new(1);
-///
-/// is_send(shardedQueue);
-/// ```
-///
-/// ```compile_fail
-/// use std::rc::Rc;
-/// use sharded_queue::ShardedQueue;
-///
-/// fn is_sync<T: Sync>(t: T) {}
-///
-/// let shardedQueue: ShardedQueue<Rc<usize>> = ShardedQueue::new(1);
-///
-/// is_sync(shardedQueue);
-/// ```
-///
-///
-///
-/// ```
-/// use std::collections::VecDeque;
-///
-/// fn is_send<T: Send>(t: T) {}
-///
-/// let vecDeque: VecDeque<usize> = VecDeque::new();
-///
-/// is_send(vecDeque);
-/// ```
-///
-/// ```
-/// use std::collections::VecDeque;
-///
-/// fn is_sync<T: Sync>(t: T) {}
-///
-/// let vecDeque: VecDeque<usize> = VecDeque::new();
-///
-/// is_sync(vecDeque);
-/// ```
-///
-/// ```compile_fail
-/// use std::collections::VecDeque;
-/// use std::rc::Rc;
-///
-/// fn is_send<T: Send>(t: T) {}
-///
-/// let vecDeque: VecDeque<Rc<usize>> = VecDeque::new();
-///
-/// is_send(vecDeque);
-/// ```
-///
-/// ```compile_fail
-/// use std::collections::VecDeque;
-/// use std::rc::Rc;
-///
-/// fn is_sync<T: Sync>(t: T) {}
-///
-/// let vecDeque: VecDeque<Rc<usize>> = VecDeque::new();
-///
-/// is_sync(vecDeque);
-/// ```
 impl<Item> ShardedQueue<Item> {
     #[inline]
     pub fn new(max_concurrent_thread_count: usize) -> Self {
@@ -412,3 +326,90 @@ impl<Item> ShardedQueue<Item> {
         }
     }
 }
+
+/// ```
+/// use sharded_queue::ShardedQueue;
+///
+/// fn is_send<T: Send>(t: T) {}
+///
+/// let shardedQueue: ShardedQueue<usize> = ShardedQueue::new(1);
+///
+/// is_send(shardedQueue);
+/// ```
+///
+/// ```
+/// use sharded_queue::ShardedQueue;
+///
+/// fn is_sync<T: Sync>(t: T) {}
+///
+/// let shardedQueue: ShardedQueue<usize> = ShardedQueue::new(1);
+///
+/// is_sync(shardedQueue);
+/// ```
+///
+/// ```compile_fail
+/// use std::rc::Rc;
+/// use sharded_queue::ShardedQueue;
+///
+/// fn is_send<T: Send>(t: T) {}
+///
+/// let shardedQueue: ShardedQueue<Rc<usize>> = ShardedQueue::new(1);
+///
+/// is_send(shardedQueue);
+/// ```
+///
+/// ```compile_fail
+/// use std::rc::Rc;
+/// use sharded_queue::ShardedQueue;
+///
+/// fn is_sync<T: Sync>(t: T) {}
+///
+/// let shardedQueue: ShardedQueue<Rc<usize>> = ShardedQueue::new(1);
+///
+/// is_sync(shardedQueue);
+/// ```
+///
+///
+///
+/// ```
+/// use std::collections::VecDeque;
+///
+/// fn is_send<T: Send>(t: T) {}
+///
+/// let vecDeque: VecDeque<usize> = VecDeque::new();
+///
+/// is_send(vecDeque);
+/// ```
+///
+/// ```
+/// use std::collections::VecDeque;
+///
+/// fn is_sync<T: Sync>(t: T) {}
+///
+/// let vecDeque: VecDeque<usize> = VecDeque::new();
+///
+/// is_sync(vecDeque);
+/// ```
+///
+/// ```compile_fail
+/// use std::collections::VecDeque;
+/// use std::rc::Rc;
+///
+/// fn is_send<T: Send>(t: T) {}
+///
+/// let vecDeque: VecDeque<Rc<usize>> = VecDeque::new();
+///
+/// is_send(vecDeque);
+/// ```
+///
+/// ```compile_fail
+/// use std::collections::VecDeque;
+/// use std::rc::Rc;
+///
+/// fn is_sync<T: Sync>(t: T) {}
+///
+/// let vecDeque: VecDeque<Rc<usize>> = VecDeque::new();
+///
+/// is_sync(vecDeque);
+/// ```
+struct ShardedQueueSendSyncImplementationsDocTests {}

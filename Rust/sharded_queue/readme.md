@@ -1,5 +1,10 @@
 # `ShardedQueue`
 
+[<img alt="github" src="https://img.shields.io/badge/github-sharded_queue-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/ivanivanyuk1993/utility.sharded_queue)
+[<img alt="crates.io" src="https://img.shields.io/crates/v/sharded_queue.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/sharded_queue)
+[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-sharded_queue-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/sharded_queue/latest/sharded_queue/struct.ShardedQueue.html)
+[![Build and test Rust](https://github.com/ivanivanyuk1993/utility.sharded_queue/actions/workflows/rust.yml/badge.svg)](https://github.com/ivanivanyuk1993/utility.sharded_queue/actions/workflows/rust.yml)
+
 ## Why you should use `ShardedQueue`
 
 `ShardedQueue` is currently the fastest collection which can be used
