@@ -1,14 +1,20 @@
+use std::cell::UnsafeCell;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 pub struct ShardedQueue<Item> {
     modulo_number: usize,
-    queue_mutex_list: Vec<Mutex<VecDeque<Item>>>,
+    unsafe_queue_and_is_locked_list: Vec<(UnsafeCell<VecDeque<Item>>, AtomicBool)>,
 
     head_index: AtomicUsize,
     tail_index: AtomicUsize,
 }
+
+/// SAFETY: [ShardedQueue] should be [Send] and [Sync] for [Item] in same cases as
+/// [std::sync::Mutex] for [Item] - when [Item] can be sent between threads,
+/// [ShardedQueue] can be sent/shared
+unsafe impl<Item: Send> Send for ShardedQueue<Item> {}
+unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
 
 /// # [ShardedQueue]
 ///
@@ -28,7 +34,10 @@ pub struct ShardedQueue<Item> {
 /// use std::thread::{available_parallelism};
 /// use sharded_queue::ShardedQueue;
 ///
+/// /// How many threads can physically access [ShardedQueue]
+/// /// simultaneously, needed for computing `shard_count`
 /// let max_concurrent_thread_count = available_parallelism().unwrap().get();
+///
 /// let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
 ///
 /// sharded_queue.push_back(1);
@@ -93,7 +102,7 @@ pub struct ShardedQueue<Item> {
 /// Synchronizing underlying non-concurrent queue costs only
 /// - 1 additional atomic increment per `push` or `pop`
 /// (incrementing `head_index` or `tail_index`)
-/// - 1 additional `compare_and_swap` and 1 atomic decrement
+/// - 1 additional `compare_and_swap` and 1 atomic store
 /// (uncontended `Mutex` acquire and release)
 /// - 1 cheap bit operation(to get modulo)
 /// - 1 get from queue(shard) list by index
@@ -244,8 +253,12 @@ pub struct ShardedQueue<Item> {
 /// }
 /// ```
 impl<Item> ShardedQueue<Item> {
+    /// # Arguments
+    ///
+    /// * `max_concurrent_thread_count` - how many threads can physically access [ShardedQueue]
+    /// simultaneously, needed for computing `shard_count`
     pub fn new(max_concurrent_thread_count: usize) -> Self {
-        // Computing `shard_count` and `modulo_number` to optmize modulo operation
+        // Computing `shard_count` and `modulo_number` to optimize modulo operation
         // performance, knowing that:
         // x % 2^n == x & (2^n - 1)
         //
@@ -262,12 +275,16 @@ impl<Item> ShardedQueue<Item> {
         // Computing lowest `shard_count` which is
         // - Greater than or equal to `max_concurrent_thread_count`
         // - And is a power of 2
-        let shard_count =
-            (2 as usize).pow((max_concurrent_thread_count as f64).log2().ceil() as u32);
+        let shard_count = (2usize).pow((max_concurrent_thread_count as f64).log2().ceil() as u32);
         Self {
             modulo_number: shard_count - 1,
-            queue_mutex_list: (0..shard_count)
-                .map(|_| Mutex::new(VecDeque::<Item>::new()))
+            unsafe_queue_and_is_locked_list: (0..shard_count)
+                .map(|_| {
+                    (
+                        UnsafeCell::new(VecDeque::<Item>::new()),
+                        AtomicBool::new(false),
+                    )
+                })
                 .collect(),
             head_index: AtomicUsize::new(0),
             tail_index: AtomicUsize::new(0),
@@ -279,24 +296,52 @@ impl<Item> ShardedQueue<Item> {
     /// [ShardedQueue::push_back] will be called
     pub fn pop_front_or_spin(&self) -> Item {
         let queue_index = self.head_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
-        let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
+        let unsafe_queue_and_is_locked = unsafe {
+            /// SAFETY: [queue_index] can not be out of bounds,
+            /// because remainder of division can not be greater
+            /// than divided number
+            self.unsafe_queue_and_is_locked_list
+                .get_unchecked(queue_index)
+        };
 
-        // Note that since we already incremented `head_index`,
-        // it is important to complete operation. If we tried
-        // to implement `try_remove_first`, we would need to somehow
-        // balance our `head_index`, complexifying logic and
-        // introducing overhead, and even if we need it,
-        // we can just check length outside before calling this method
+        /// Note that since we already incremented `head_index`,
+        /// it is important to complete operation. If we tried
+        /// to implement `try_remove_first`, we would need to somehow
+        /// balance our `head_index`, complexifying logic and
+        /// introducing overhead, and even if we need it,
+        /// we can just check length outside before calling this method
+        let is_locked = &unsafe_queue_and_is_locked.1;
         loop {
-            let ref mut try_lock_result = queue_mutex.try_lock();
+            /// We don't use [std::sync::Mutex::lock],
+            /// because it may block thread, which we want to avoid,
+            /// and operation [VecDeque::push_back] under lock has complexity
+            /// amortized O(1), which is very fast
+            if is_locked
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                let queue = unsafe {
+                    /// SAFETY: We do operations on [unsafe_queue_and_is_locked] only between
+                    /// acquiring of [AtomicBool] with [Ordering::Acquire] and releasing with
+                    /// [Ordering::Release], so it is synchronized
+                    ///
+                    /// [ShardedQueue] is [Send] only when [Item] is [Send], so it is safe
+                    /// to send [Item] to other thread when [ShardedQueue] can be accessed
+                    /// from other thread
+                    &mut *unsafe_queue_and_is_locked.0.get()
+                };
 
-            /// If we acquired lock after [ShardedQueue::push_back] and have item,
-            /// we can use return item, otherwise we should unlock and restart
-            /// spinning, giving [ShardedQueue::push_back] chance to lock
-            if let Ok(queue_shard) = try_lock_result {
-                let item_option = queue_shard.pop_front();
-                if let Some(item) = item_option {
-                    return item;
+                /// If we acquired lock after [ShardedQueue::push_back] and have [Item],
+                /// we can return [Item], otherwise we should unlock and restart
+                /// spinning, giving [ShardedQueue::push_back] chance to acquire lock
+                match queue.pop_front() {
+                    None => {
+                        is_locked.store(false, Ordering::Release);
+                    }
+                    Some(item) => {
+                        is_locked.store(false, Ordering::Release);
+                        return item;
+                    }
                 }
             }
         }
@@ -304,13 +349,40 @@ impl<Item> ShardedQueue<Item> {
 
     pub fn push_back(&self, item: Item) {
         let queue_index = self.tail_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
-        let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
+        let unsafe_queue_and_is_locked = unsafe {
+            /// SAFETY: [queue_index] can not be out of bounds,
+            /// because remainder of division can not be greater
+            /// than divided number
+            self.unsafe_queue_and_is_locked_list
+                .get_unchecked(queue_index)
+        };
+
+        let is_locked = &unsafe_queue_and_is_locked.1;
         loop {
-            /// We can not use [Mutex::lock] instead of [Mutex::try_lock],
-            /// because it may block thread, which we want to avoid
-            let ref mut try_lock_result = queue_mutex.try_lock();
-            if let Ok(queue_shard) = try_lock_result {
-                queue_shard.push_back(item);
+            /// We don't use [std::sync::Mutex::lock],
+            /// because it may block thread, which we want to avoid,
+            /// and operation [VecDeque::push_back] under lock has complexity
+            /// amortized O(1), which is very fast
+            ///
+            /// We don't use [std::sync::Mutex::try_lock],
+            /// because we achieved 2 times faster performance in benchmarks by using raw
+            /// [AtomicBool]
+            if is_locked
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                let queue = unsafe {
+                    /// SAFETY: We do operations on [unsafe_queue_and_is_locked] only between
+                    /// acquiring of [AtomicBool] with [Ordering::Acquire] and releasing with
+                    /// [Ordering::Release], so it is synchronized
+                    ///
+                    /// [ShardedQueue] is [Send] only when [Item] is [Send], so it is safe
+                    /// to send [Item] to other thread when [ShardedQueue] can be accessed
+                    /// from other thread
+                    &mut *unsafe_queue_and_is_locked.0.get()
+                };
+                queue.push_back(item);
+                is_locked.store(false, Ordering::Release);
 
                 break;
             }

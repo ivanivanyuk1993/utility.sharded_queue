@@ -26,7 +26,10 @@ cargo add sharded_queue
 use std::thread::{available_parallelism};
 use sharded_queue::ShardedQueue;
 
+/// How many threads can physically access [ShardedQueue]
+/// simultaneously, needed for computing `shard_count`
 let max_concurrent_thread_count = available_parallelism().unwrap().get();
+
 let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
 
 sharded_queue.push_back(1);
@@ -64,15 +67,15 @@ cargo bench
 ```
 | Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
 |:-------------------------------------------|---------------------------:|------------------------:|-------------:|
-| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    3.1980 ms |
+| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    1.8898 ms |
 | concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
 | queue_mutex_push_and_pop_concurrently      |                      1_000 |                      24 |    6.4846 ms |
-| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    37.245 ms |
+| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    15.888 ms |
 | concurrent_queue_push_and_pop_concurrently |                     10_000 |                      24 |    44.660 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                     10_000 |                      24 |    49.234 ms |
 | queue_mutex_push_and_pop_concurrently      |                     10_000 |                      24 |    69.207 ms |
-| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    395.12 ms |
+| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    155.52 ms |
 | concurrent_queue_push_and_pop_concurrently |                    100_000 |                      24 |    445.88 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                    100_000 |                      24 |    434.00 ms |
 | queue_mutex_push_and_pop_concurrently      |                    100_000 |                      24 |    476.59 ms |
@@ -112,7 +115,7 @@ simultaneously and we have best possible performance.
 Synchronizing underlying non-concurrent queue costs only
 - 1 additional atomic increment per `push` or `pop`
 (incrementing `head_index` or `tail_index`)
-- 1 additional `compare_and_swap` and 1 atomic decrement
+- 1 additional `compare_and_swap` and 1 atomic store
 (uncontended `Mutex` acquire and release)
 - 1 cheap bit operation(to get modulo)
 - 1 get from queue(shard) list by index
