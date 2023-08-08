@@ -121,7 +121,6 @@ pub struct ShardedQueue<Item> {
 /// /// [NonBlockingMutex] doesn't guarantee order of execution too, even of already added
 /// /// items
 /// impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
-///     #[inline]
 ///     pub fn new(max_concurrent_thread_count: usize, state: State) -> Self {
 ///         Self {
 ///             task_count: AtomicUsize::new(0),
@@ -132,7 +131,6 @@ pub struct ShardedQueue<Item> {
 ///
 ///     /// Please don't forget that order of execution is not guaranteed. Atomicity of operations is guaranteed,
 ///     /// but order can be random
-///     #[inline]
 ///     pub fn run_if_first_or_schedule_on_first(
 ///         &self,
 ///         run_with_state: impl FnOnce(MutexGuard<State>) + Send + 'captured_variables,
@@ -216,7 +214,6 @@ pub struct ShardedQueue<Item> {
 /// {
 ///     type Target = State;
 ///
-///     #[inline]
 ///     fn deref(&self) -> &State {
 ///         unsafe { &*self.non_blocking_mutex.unsafe_state.get() }
 ///     }
@@ -225,7 +222,6 @@ pub struct ShardedQueue<Item> {
 /// impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized> DerefMut
 ///     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 /// {
-///     #[inline]
 ///     fn deref_mut(&mut self) -> &mut State {
 ///         unsafe { &mut *self.non_blocking_mutex.unsafe_state.get() }
 ///     }
@@ -234,7 +230,6 @@ pub struct ShardedQueue<Item> {
 /// impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Debug> Debug
 ///     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 /// {
-///     #[inline]
 ///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 ///         Debug::fmt(&**self, f)
 ///     }
@@ -243,14 +238,12 @@ pub struct ShardedQueue<Item> {
 /// impl<'captured_variables, 'non_blocking_mutex_ref, State: ?Sized + Display> Display
 ///     for MutexGuard<'captured_variables, 'non_blocking_mutex_ref, State>
 /// {
-///     #[inline]
 ///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 ///         (**self).fmt(f)
 ///     }
 /// }
 /// ```
 impl<Item> ShardedQueue<Item> {
-    #[inline]
     pub fn new(max_concurrent_thread_count: usize) -> Self {
         // Computing `shard_count` and `modulo_number` to optmize modulo operation
         // performance, knowing that:
@@ -284,7 +277,6 @@ impl<Item> ShardedQueue<Item> {
     /// Note that it will spin until item is added => it can spin very long if
     /// [ShardedQueue::pop_front_or_spin] is called without guarantee that
     /// [ShardedQueue::push_back] will be called
-    #[inline]
     pub fn pop_front_or_spin(&self) -> Item {
         let queue_index = self.head_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
         let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
@@ -310,7 +302,6 @@ impl<Item> ShardedQueue<Item> {
         }
     }
 
-    #[inline]
     pub fn push_back(&self, item: Item) {
         let queue_index = self.tail_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
         let queue_mutex = unsafe { self.queue_mutex_list.get_unchecked(queue_index) };
