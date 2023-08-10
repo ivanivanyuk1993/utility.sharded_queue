@@ -67,15 +67,15 @@ cargo bench
 ```
 | Benchmark name                             | Operation count per thread | Concurrent thread count | average_time |
 |:-------------------------------------------|---------------------------:|------------------------:|-------------:|
-| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    1.8898 ms |
+| sharded_queue_push_and_pop_concurrently    |                      1_000 |                      24 |    1.1344 ms |
 | concurrent_queue_push_and_pop_concurrently |                      1_000 |                      24 |    4.8130 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                      1_000 |                      24 |    5.3154 ms |
 | queue_mutex_push_and_pop_concurrently      |                      1_000 |                      24 |    6.4846 ms |
-| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    15.888 ms |
+| sharded_queue_push_and_pop_concurrently    |                     10_000 |                      24 |    8.1651 ms |
 | concurrent_queue_push_and_pop_concurrently |                     10_000 |                      24 |    44.660 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                     10_000 |                      24 |    49.234 ms |
 | queue_mutex_push_and_pop_concurrently      |                     10_000 |                      24 |    69.207 ms |
-| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    155.52 ms |
+| sharded_queue_push_and_pop_concurrently    |                    100_000 |                      24 |    77.167 ms |
 | concurrent_queue_push_and_pop_concurrently |                    100_000 |                      24 |    445.88 ms |
 | crossbeam_queue_push_and_pop_concurrently  |                    100_000 |                      24 |    434.00 ms |
 | queue_mutex_push_and_pop_concurrently      |                    100_000 |                      24 |    476.59 ms |

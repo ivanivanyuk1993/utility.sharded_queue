@@ -1,13 +1,15 @@
+use crossbeam_utils::CachePadded;
+
 use std::cell::UnsafeCell;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 pub struct ShardedQueue<Item> {
     modulo_number: usize,
-    unsafe_queue_and_is_locked_list: Vec<(UnsafeCell<VecDeque<Item>>, AtomicBool)>,
+    unsafe_queue_and_is_locked_list: Vec<CachePadded<(UnsafeCell<VecDeque<Item>>, AtomicBool)>>,
 
-    head_index: AtomicUsize,
-    tail_index: AtomicUsize,
+    head_index: CachePadded<AtomicUsize>,
+    tail_index: CachePadded<AtomicUsize>,
 }
 
 /// SAFETY: [ShardedQueue] should be [Send] and [Sync] for [Item] in same cases as
@@ -280,14 +282,14 @@ impl<Item> ShardedQueue<Item> {
             modulo_number: shard_count - 1,
             unsafe_queue_and_is_locked_list: (0..shard_count)
                 .map(|_| {
-                    (
+                    CachePadded::new((
                         UnsafeCell::new(VecDeque::<Item>::new()),
                         AtomicBool::new(false),
-                    )
+                    ))
                 })
                 .collect(),
-            head_index: AtomicUsize::new(0),
-            tail_index: AtomicUsize::new(0),
+            head_index: CachePadded::new(AtomicUsize::new(0)),
+            tail_index: CachePadded::new(AtomicUsize::new(0)),
         }
     }
 
