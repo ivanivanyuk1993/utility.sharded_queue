@@ -33,7 +33,7 @@ let max_concurrent_thread_count = available_parallelism().unwrap().get();
 let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
 
 sharded_queue.push_back(1);
-let item = sharded_queue.pop_front_or_spin();
+let item = sharded_queue.pop_front_or_spin_wait_item();
 ```
 
 ## Why you may want to not use `ShardedQueue`
@@ -44,7 +44,7 @@ there can be a situation, when multiple consumers or producers triggered long re
 all but last, then passed enough time for resize to finish, then 1 consumer or producer triggers long resize of
 last shard, and all other threads start to consume or produce, and eventually start spinning on
 last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that
-`ShardedQueue::pop_front_or_spin` will acquire lock before `ShardedQueue::push_back` on first
+`ShardedQueue::pop_front_or_spin_wait_item` will acquire lock before `ShardedQueue::push_back` on first
 attempt
 
 - `ShardedQueue` doesn't track length, since length's increment/decrement logic may change
@@ -56,7 +56,7 @@ since it is cheaper to restore count to correct state than to enforce that it ca
 in some schedulers)
 
 - `ShardedQueue` doesn't have many features, only necessary methods
-`ShardedQueue::pop_front_or_spin` and
+`ShardedQueue::pop_front_or_spin_wait_item` and
 `ShardedQueue::push_back` are implemented
 
 ## Benchmarks
@@ -165,12 +165,12 @@ impl<'captured_variables, State> NonBlockingMutex<'captured_variables, State> {
             /// Note that if [`fetch_sub`] != 1
             /// => some thread entered first if block in method
             /// => [ShardedQueue::push_back] is guaranteed to be called
-            /// => [ShardedQueue::pop_front_or_spin] will not deadlock while spins until it gets item
+            /// => [ShardedQueue::pop_front_or_spin_wait_item] will not deadlock while spins until it gets item
             ///
             /// Notice that we run action first, and only then decrement count
             /// with releasing(pushing) memory changes, even if it looks otherwise
             while self.task_count.fetch_sub(1, Ordering::Release) != 1 {
-                self.task_queue.pop_front_or_spin()(unsafe { MutexGuard::new(self) });
+                self.task_queue.pop_front_or_spin_wait_item()(unsafe { MutexGuard::new(self) });
             }
         }
     }

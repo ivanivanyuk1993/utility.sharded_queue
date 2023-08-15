@@ -43,7 +43,7 @@ unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
 /// let sharded_queue = ShardedQueue::new(max_concurrent_thread_count);
 ///
 /// sharded_queue.push_back(1);
-/// let item = sharded_queue.pop_front_or_spin();
+/// let item = sharded_queue.pop_front_or_spin_wait_item();
 /// ```
 ///
 /// ## Why you may want to not use `ShardedQueue`
@@ -54,7 +54,7 @@ unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
 /// all but last, then passed enough time for resize to finish, then 1 consumer or producer triggers long resize of
 /// last shard, and all other threads start to consume or produce, and eventually start spinning on
 /// last shard, without guarantee which will acquire spin lock first, so we can't even guarantee that
-/// [ShardedQueue::pop_front_or_spin] will acquire lock before [ShardedQueue::push_back] on first
+/// [ShardedQueue::pop_front_or_spin_wait_item] will acquire lock before [ShardedQueue::push_back] on first
 /// attempt
 ///
 /// - [ShardedQueue] doesn't track length, since length's increment/decrement logic may change
@@ -66,7 +66,7 @@ unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
 /// in some schedulers)
 ///
 /// - [ShardedQueue] doesn't have many features, only necessary methods
-/// [ShardedQueue::pop_front_or_spin] and
+/// [ShardedQueue::pop_front_or_spin_wait_item] and
 /// [ShardedQueue::push_back] are implemented
 ///
 /// ## Design explanation
@@ -154,12 +154,12 @@ unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
 ///             /// Note that if [`fetch_sub`] != 1
 ///             /// => some thread entered first if block in method
 ///             /// => [ShardedQueue::push_back] is guaranteed to be called
-///             /// => [ShardedQueue::pop_front_or_spin] will not deadlock while spins until it gets item
+///             /// => [ShardedQueue::pop_front_or_spin_wait_item] will not deadlock while spins until it gets item
 ///             ///
 ///             /// Notice that we run action first, and only then decrement count
 ///             /// with releasing(pushing) memory changes, even if it looks otherwise
 ///             while self.task_count.fetch_sub(1, Ordering::Release) != 1 {
-///                 self.task_queue.pop_front_or_spin()(unsafe { MutexGuard::new(self) });
+///                 self.task_queue.pop_front_or_spin_wait_item()(unsafe { MutexGuard::new(self) });
 ///             }
 ///         }
 ///     }
@@ -293,10 +293,11 @@ impl<Item> ShardedQueue<Item> {
         }
     }
 
-    /// Note that it will spin until item is added => it can spin very long if
-    /// [ShardedQueue::pop_front_or_spin] is called without guarantee that
-    /// [ShardedQueue::push_back] will be called
-    pub fn pop_front_or_spin(&self) -> Item {
+    /// Note that [ShardedQueue::pop_front_or_spin_wait_item] will spin until [Item]
+    /// is added => [ShardedQueue::pop_front_or_spin_wait_item] can spin very long if
+    /// [ShardedQueue::pop_front_or_spin_wait_item] is called without guarantee that
+    /// [ShardedQueue::push_back] will be called soon
+    pub fn pop_front_or_spin_wait_item(&self) -> Item {
         let queue_index = self.head_index.fetch_add(1, Ordering::Relaxed) & self.modulo_number;
         let unsafe_queue_and_is_locked = unsafe {
             /// SAFETY: [queue_index] can not be out of bounds,
@@ -315,9 +316,14 @@ impl<Item> ShardedQueue<Item> {
         let is_locked = &unsafe_queue_and_is_locked.1;
         loop {
             /// We don't use [std::sync::Mutex::lock],
-            /// because it may block thread, which we want to avoid,
-            /// and operation [VecDeque::push_back] under lock has complexity
-            /// amortized O(1), which is very fast
+            /// because [std::sync::Mutex::lock] may block thread, which we want to avoid,
+            /// and queue operations under lock have complexity
+            /// amortized O(1), which is very fast and has little
+            /// chance to perform better with blocking versus spinning
+            ///
+            /// We don't use [std::sync::Mutex::try_lock],
+            /// because replacing [std::sync::Mutex::try_lock]
+            /// with pure atomic gives ~2 times better performance
             if is_locked
                 .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                 .is_ok()

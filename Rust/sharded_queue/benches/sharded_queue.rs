@@ -54,7 +54,7 @@ fn sharded_queue_push_and_pop_concurrently(
             scope.spawn(|| {
                 for i in 0..operation_count {
                     sharded_queue.push_back(i);
-                    sharded_queue.pop_front_or_spin();
+                    sharded_queue.pop_front_or_spin_wait_item();
                 }
             });
         }

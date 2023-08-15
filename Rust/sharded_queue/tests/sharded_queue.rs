@@ -19,7 +19,7 @@ fn push_and_pop_concurrently() {
                 let mut operation_result_list = Vec::with_capacity(operation_count);
                 for i in 0..operation_count {
                     sharded_queue.push_back(i);
-                    operation_result_list.push(sharded_queue.pop_front_or_spin());
+                    operation_result_list.push(sharded_queue.pop_front_or_spin_wait_item());
                 }
 
                 operation_result_list
@@ -76,7 +76,7 @@ fn push_concurrently_then_pop_concurrently() {
             pop_join_handle_list.push(scope.spawn(|| {
                 let mut operation_result_list = Vec::with_capacity(operation_count);
                 for _i in 0..operation_count {
-                    operation_result_list.push(sharded_queue.pop_front_or_spin());
+                    operation_result_list.push(sharded_queue.pop_front_or_spin_wait_item());
                 }
 
                 operation_result_list
