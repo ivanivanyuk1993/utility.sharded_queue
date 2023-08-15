@@ -4,6 +4,20 @@ use std::cell::UnsafeCell;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+pub struct ShardedQueue<Item> {
+    modulo_number: usize,
+    unsafe_queue_and_is_locked_list: Vec<CachePadded<(UnsafeCell<VecDeque<Item>>, AtomicBool)>>,
+
+    head_index: CachePadded<AtomicUsize>,
+    tail_index: CachePadded<AtomicUsize>,
+}
+
+/// SAFETY: [ShardedQueue] should be [Send] and [Sync] for [Item] in same cases as
+/// [std::sync::Mutex] for [Item] - when [Item] can be sent between threads,
+/// [ShardedQueue] can be sent/shared
+unsafe impl<Item: Send> Send for ShardedQueue<Item> {}
+unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
+
 /// # [ShardedQueue]
 ///
 /// ## Why you should use [ShardedQueue]
@@ -240,20 +254,6 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 ///     }
 /// }
 /// ```
-pub struct ShardedQueue<Item> {
-    modulo_number: usize,
-    unsafe_queue_and_is_locked_list: Vec<CachePadded<(UnsafeCell<VecDeque<Item>>, AtomicBool)>>,
-
-    head_index: CachePadded<AtomicUsize>,
-    tail_index: CachePadded<AtomicUsize>,
-}
-
-/// SAFETY: [ShardedQueue] should be [Send] and [Sync] for [Item] in same cases as
-/// [std::sync::Mutex] for [Item] - when [Item] can be sent between threads,
-/// [ShardedQueue] can be sent/shared
-unsafe impl<Item: Send> Send for ShardedQueue<Item> {}
-unsafe impl<Item: Send> Sync for ShardedQueue<Item> {}
-
 impl<Item> ShardedQueue<Item> {
     /// # Arguments
     ///
