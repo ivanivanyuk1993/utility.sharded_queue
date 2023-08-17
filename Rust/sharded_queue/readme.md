@@ -7,7 +7,7 @@
 
 ## Why you should use `ShardedQueue`
 
-`ShardedQueue` is currently the fastest collection which can be used
+`ShardedQueue` is currently the fastest concurrent collection which can be used
 under highest concurrency and load
 among most popular solutions, like `concurrent-queue` -
 see benchmarks in directory `benches` and run them with

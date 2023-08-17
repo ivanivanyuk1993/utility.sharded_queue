@@ -1,13 +1,13 @@
 [package]
-categories = ["concurrency", "data-structures"]
-description = "ShardedQueue is currently the fastest collection which can be used under highest concurrency and load"
+categories = ["algorithms", "concurrency", "data-structures"]
+description = "ShardedQueue is currently the fastest concurrent collection which can be used under highest concurrency and load"
 homepage = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
 keywords = ["concurrency", "concurrent-queue", "mpmc", "sharded-queue", "queue"]
 license = "MIT OR Apache-2.0"
 name = "sharded_queue"
 readme = "readme.md"
 repository = "https://github.com/ivanivanyuk1993/utility.sharded_queue"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
