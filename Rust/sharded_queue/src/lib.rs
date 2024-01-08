@@ -315,6 +315,8 @@ impl<Item> ShardedQueue<Item> {
         /// we can just check length outside before calling this method
         let is_locked = &unsafe_queue_and_is_locked.1;
         loop {
+            std::hint::spin_loop();
+
             /// We don't use [std::sync::Mutex::lock],
             /// because [std::sync::Mutex::lock] may block thread, which we want to avoid,
             /// and queue operations under lock have complexity
